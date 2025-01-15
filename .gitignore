@@ -24,6 +24,9 @@ airflow-local/airflow-data/logs/scheduler/latest
 !airflow.cfg
 .vscode
 .env
+*/.env
+*/*.env
+*/*/*.env
 ./datasetmanager/datasets/*
 notebooks/*
 !keepme
