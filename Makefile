@@ -1,70 +1,94 @@
 SHELL := /bin/bash
 ROOT_DIR := $(shell pwd)
 
-# Default variables from .env if it exists
+# Set default variables from .env file if exists
 ifneq (,$(wildcard ./.env))
     include .env
     export
     ENV_FILE_PARAM = --env-file .env
 endif
 
-# Default cluster context
+# Default variables
+APP_VERSION := 5.4.3
+
 ifeq ($(strip $(CLUSTER_CONTEXT)),)
-  CLUSTER_CONTEXT := "rancher-desktop"
+  CLUSTER_CONTEXT := "kind"
 endif
 
-# Tool versions
-ARGOC_D_VERSION := 5.4.3
-ARGOC_D_CLI_URL := "https://github.com/argoproj/argo-cd/releases/latest/download/argocd-darwin-arm64"
-
-# Check if required tools are installed
-check-tools:
-	@command -v kubectl >/dev/null 2>&1 || { echo "kubectl is not installed"; exit 1; }
-	@command -v helm >/dev/null 2>&1 || { echo "helm is not installed"; exit 1; }
-	@command -v argocd >/dev/null 2>&1 || { echo "argocd CLI is not installed"; exit 1; }
-
+# Help
 help: ## Show this helper.
 	@echo "Available commands:"
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
 
-## install-argocd-cli: Install Argo CD CLI for macOS.
+
+# Install ArgoCD CLI
+## install-argocd-cli: Install ArgoCD CLI for Mac
 install-argocd-cli:
-	bash -c "curl -sSL -o argocd-darwin-arm64 $(ARGOC_D_CLI_URL) \
+	bash -c "curl -sSL -o argocd-darwin-arm64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-darwin-arm64 \
 	&& sudo install -m 555 argocd-darwin-arm64 /usr/local/bin/argocd \
 	&& rm argocd-darwin-arm64"
 
-## install-argocd: Install Argo CD in Kubernetes cluster.
-install-argocd: check-tools
-	helm install argocd oci://registry-1.docker.io/bitnamicharts/argo-cd \
-		--version $(ARGOC_D_VERSION) --namespace $(NAMESPACE) --create-namespace
+# Install ArgoCD in the cluster
+## install-argocd: Install ArgoCD in the cluster
+install-argocd:
+	helm install argocd oci://registry-1.docker.io/bitnamicharts/argo-cd --version $(APP_VERSION) --namespace argocd --create-namespace
 	@sleep 5
-	kubectl -n $(NAMESPACE) patch svc argocd-argo-cd-server -p '{"spec": {"type": "LoadBalancer"}}'
+	kubectl -n argocd patch svc argocd-argo-cd-server -p '{"spec": {"type": "LoadBalancer"}}'
 
-## argocd-passwd: Get Argo CD admin credentials.
-argocd-passwd: check-tools
-	@kubectl -n argocd get secret argocd-secret >/dev/null 2>&1 || { echo "Argo CD is not installed"; exit 1; }
-	@echo "Argo CD URL: http://127.0.0.1:$(ARGOCD_PORT)/"
-	@echo "Username: admin"
-	@echo "Password: $(shell kubectl -n \$(NAMESPACE) get secret argocd-secret -o jsonpath="{.data.clearPassword}" | base64 -d)"
+# Get ArgoCD admin credentials
+## argocd-passwd: Get ArgoCD admin credentials
+argocd-passwd:
+	@echo "Argo CD URL: http://127.0.0.1:38080/"
+	@echo "Username: admin Password: $(shell kubectl -n argocd get secret argocd-secret -o jsonpath="{.data.clearPassword}" | base64 -d)"
+	@echo "Remember to copy the password."
 
-## argocd-portforward: Port-forward Argo CD server for local access.
-argocd-portforward: check-tools argocd-passwd
+# Port-forward ArgoCD UI
+## argocd-portforward: Port-forward ArgoCD web UI and API
+argocd-portforward: argocd-passwd
 	@echo "---------------------------------------------------------------------------------------|"
-	@kubectl port-forward --namespace $(NAMESPACE) svc/argocd-argo-cd-server $(ARGCD_PORT):80 &
-	@kubectl port-forward --namespace $(NAMESPACE) svc/argocd-argo-cd-server $(ARGOCD_S_PORT):443 &
+	@kubectl port-forward --namespace argocd svc/argocd-argo-cd-server 38080:80 &
+	@kubectl port-forward --namespace argocd svc/argocd-argo-cd-server 30443:443 &
 	@echo "Your terminal will show port-forward logs. Press ENTER to recover control."
 
-## argocd-cli: Login to Argo CD CLI.
-argocd-cli: check-tools
-	@argocd login 127.0.0.1:$(ARGOCD_S_PORT) --username admin --password $(shell kubectl -n \$(NAMESPACE) get secret argocd-secret -o jsonpath="{.data.clearPassword}" | base64 -d)
+# Configure ArgoCD CLI
+## argocd-cli: Configure ArgoCD CLI
+argocd-cli:
+	argocd login 127.0.0.1:30443 --username admin --password $(shell kubectl -n argocd get secret argocd-secret -o jsonpath="{.data.clearPassword}" | base64 -d)
 
-## argocd-repo-add: Add a Git repository to Argo CD.
-argocd-repo-add: check-tools
-	@argocd account get-user-info >/dev/null 2>&1 || { echo "Not logged in to Argo CD, run 'make argocd-cli' first!"; exit 1; }
-	@[[ -n "$(GIT_REPO)" && -n "$(GIT_USER)" && -n "$(GIT_PAT_TOKEN)" ]] || { echo "Missing variables: GIT_REPO, GIT_USER, or GIT_PAT_TOKEN"; exit 1; }
-	argocd repo add $(GIT_REPO) --username $(GIT_USER) --password $(GIT_PAT_TOKEN)
+# Deploy and forward app
+## deploy-app: Deploy and forward an app using a provided .env file.
+deploy-app:
+	@ENV_FILE=$(ENV_FILE); \
+	if [ -f $$ENV_FILE ]; then \
+		echo "Using environment file: $$ENV_FILE"; \
+		source $$ENV_FILE && \
+		helm upgrade --install $$APP $$APP_REPO \
+			--version $$APP_VERSION \
+			--namespace $$NAMESPACE --create-namespace; \
+		sleep 5; \
+		kubectl -n $$NAMESPACE patch svc $$SERVICE_NAME -p '{"spec": {"type": "LoadBalancer"}}'; \
+	else \
+		echo "Environment file $$ENV_FILE not found!"; \
+		exit 1; \
+	fi
 
-## kill-portforward: Kill all port-forward processes.
+# Port-forward the application
+## app-portforward: Port-forward application for local access
+app-portforward:
+	@[ -f $(ENV_FILE) ] || { echo "Environment file $(ENV_FILE) not found!"; exit 1; }
+	@source $(ENV_FILE); \
+	echo "---------------------------------------------------------------------------------------|"; \
+	kubectl port-forward --namespace $${NAMESPACE} svc/$${SERVICE_NAME} $${APP_PORT}:80 &
+	@kubectl port-forward --namespace $${NAMESPACE} svc/$${SERVICE_NAME} $${APP_S_PORT}:443 &
+	@echo "Your terminal will show port-forward logs. Press ENTER to recover control."
+
+# Add a repository to ArgoCD
+## argocd-repo-add: Add a Git repository to ArgoCD
+argocd-repo-add:
+	@[ -f $(ENV_FILE) ] || { echo "Environment file $(ENV_FILE) not found!"; exit 1; }
+
+# Kill all port-forward processes
+## kill-portforward: Kill all port-forward processes
 kill-portforward:
 	@echo "Killing all kubectl port-forward processes..."
 	@pkill -f 'kubectl port-forward' || echo "No port-forward processes found."

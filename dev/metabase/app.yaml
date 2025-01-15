@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metabase
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/maxflorentin/argocd.git # Repositorio que contiene el manifiesto y/o valores de Helm
+    targetRevision: main # Rama que deseas desplegar
+    path: dev/metabase # Ruta en el repositorio donde están los valores/configuración de Helm
+  helm:
+    valueFiles:
+      - values.yaml # Asegúrate de que este archivo esté en el path especificado
+  destination:
+    server: https://kubernetes.default.svc # URL del cluster Kubernetes dentro del namespace de ArgoCD
+    namespace: dataops # Namespace donde se desplegará Metabase
+  syncPolicy:
+    automated:
+      prune: true # Elimina recursos que ya no están en el manifiesto
+      selfHeal: true # Repara recursos que difieran del estado deseado
+      allowEmpty: false # Evita la sincronización si no hay recursos detectados
+    syncOptions:
+      - CreateNamespace=true
+  retry:
+    limit: 5
+    backoff:
+      duration: 5s
+      factor: 2
+      maxDuration: 30s
