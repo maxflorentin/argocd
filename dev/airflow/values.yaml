@@ -1,0 +1,44 @@
+executor: LocalExecutor
+
+airflow:
+  image:
+    repository: apache/airflow
+    tag: 2.9.1
+    pullPolicy: IfNotPresent
+
+  config:
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
+
+  users:
+    - username: admin
+      password: admin
+      role: Admin
+      email: admin@example.com
+      firstName: Admin
+      lastName: User
+
+webserver:
+  defaultUser:
+    enabled: true
+
+  service:
+    type: LoadBalancer
+    port: 8080
+
+postgresql:
+  enabled: true
+  auth:
+    username: airflow
+    password: airflow
+    database: airflow
+
+redis:
+  enabled: false
+
+dags:
+  gitSync:
+    enabled: false
+
+ingress:
+  enabled: false
