@@ -6,47 +6,41 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://charts.bitnami.com/bitnami
-    targetRevision: 22.7.2
+    repoURL: 'https://charts.bitnami.com/bitnami'
+    targetRevision: '22.7.2'
     chart: airflow
     helm:
       values: |
-        executor: CeleryExecutor
-
+        executor: "CeleryExecutor"
         airflow:
           auth:
-            username: admin
-            password: admin
-            email: admin@example.com
-            firstname: Admin
-            lastname: User
-          
+            username: "admin"
+            password: "admin"
+            email: "admin@example.com"
+            firstname: "Admin"
+            lastname: "User"
           extraEnvVars:
             - name: AIRFLOW__CORE__LOAD_EXAMPLES
               value: "false"
-          
           web:
             service:
-              type: ClusterIP
-
+              type: "ClusterIP"
         postgresql:
-          enabled: true
+          enabled: "true"
           auth:
-            username: airflow
-            password: airflow
-            database: airflow
-
+            username: "airflow"
+            password: "airflow"
+            database: "airflow"
         redis:
-          enabled: true
-          
+          enabled: "true"
         dags:
           persistence:
-            enabled: true
+            enabled: "true"
   destination:
-    server: https://kubernetes.default.svc # Replace with your Kubernetes server
+    server: 'https://kubernetes.default.svc'
     namespace: airflow
   syncPolicy:
     automated:
-      prune: true # Automatically prune deleted resources
+      prune: true
     syncOptions:
-      - CreateNamespace=true # Automatically create namespace
+      - CreateNamespace=true
