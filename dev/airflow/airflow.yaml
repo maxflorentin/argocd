@@ -6,20 +6,17 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/maxflorentin/argocd.git
-    targetRevision: main
-    path: dev/airflow
-  helm:
-    valueFiles:
-      - values.yaml # Include the values.yaml file
+    repoURL: https://charts.bitnami.com/bitnami
+    targetRevision: 14.1.6
+    chart: airflow
+    helm:
+      valueFiles:
+        - values.yaml # Include the values.yaml file
   destination:
     server: https://kubernetes.default.svc # Replace with your Kubernetes server
     namespace: airflow
   syncPolicy:
     automated:
-      createNamespace: true # Automatically create namespace
-      # targetRevision: "feature/argocddeployment_test"
       prune: true # Automatically prune deleted resources
-      autoSync: true # Automatically sync on branch changes
-      retryCount: 5 # Set retry attempts for failed syncs
-      syncPeriod: 30s # Set sync interval (optional)
+    syncOptions:
+      - CreateNamespace=true # Automatically create namespace

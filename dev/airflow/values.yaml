@@ -1,30 +1,32 @@
-executor: LocalExecutor
+## Bitnami Airflow values configuration
+executor: local
 
 airflow:
   image:
+    registry: docker.io
     repository: apache/airflow
     tag: 2.9.1
     pullPolicy: IfNotPresent
-
-  config:
-    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-    AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
-
-  users:
-    - username: admin
-      password: admin
-      role: Admin
-      email: admin@example.com
-      firstName: Admin
-      lastName: User
-
-webserver:
-  defaultUser:
-    enabled: true
-
-  service:
-    type: LoadBalancer
-    port: 8080
+  
+  configurationConfigMap: ~
+  
+  extraEnvVars:
+    - name: AIRFLOW__CORE__LOAD_EXAMPLES
+      value: "false"
+    - name: AIRFLOW__API__AUTH_BACKENDS
+      value: "airflow.api.auth.backend.basic_auth"
+  
+  auth:
+    username: admin
+    password: admin
+    email: admin@example.com
+    firstname: Admin
+    lastname: User
+    
+  web:
+    service:
+      type: LoadBalancer
+      port: 8080
 
 postgresql:
   enabled: true
@@ -37,8 +39,10 @@ redis:
   enabled: false
 
 dags:
+  persistence:
+    enabled: true
   gitSync:
     enabled: false
-
+    
 ingress:
   enabled: false
