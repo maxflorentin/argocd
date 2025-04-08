@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://charts.bitnami.com/bitnami
     chart: airflow
-    targetRevision: 22.7.2
+    repoURL: https://charts.bitnami.com/bitnami
+    targetRevision: '>=22.7.2'
     helm:
       values: |
         global:
