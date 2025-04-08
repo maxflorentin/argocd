@@ -6,8 +6,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://charts.bitnami.com/bitnami
-    targetRevision: 22.6.1
+    repoURL: 'https://charts.bitnami.com/bitnami'
+    targetRevision: '22.7.2'
     chart: airflow
     helm:
       values: |
@@ -37,7 +37,7 @@ spec:
           persistence:
             enabled: true
   destination:
-    server: https://kubernetes.default.svc
+    server: 'https://kubernetes.default.svc'
     namespace: airflow
   syncPolicy:
     automated:
